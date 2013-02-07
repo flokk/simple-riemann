@@ -1,8 +1,7 @@
 /**
  * Module dependencies
  */
-var riemann = require("riemann")
-  , domain = require("domain").create();
+var domain = require("domain");
 
 /**
  * Cache the clients
@@ -29,15 +28,24 @@ module.exports = function(options, cb) {
 
   if (CACHE[options.host+options.port]) return CACHE[options.host+options.port];
 
-  domain.on("error", cb);
+  try {
+    module.exports.__riemann = module.exports.__riemann || require("riemann");
+  }
+  catch(e) {
+    console.error("Could not load riemann. Try adding it to the app dependencies or run\n  require('simple-riemann').__riemann = require('riemann');")
+  }
+
+  var clientDomain = domain.create();
+
+  clientDomain.on("error", cb);
 
   var client;
 
-  domain.run(function() {
-    client = riemann.createClient(options);
+  clientDomain.run(function() {
+    client = module.exports.__riemann.createClient(options);
 
-    domain.removeAllListeners("error");
-    domain.on("error", function(err) {
+    clientDomain.removeAllListeners("error");
+    clientDomain.on("error", function(err) {
       client.emit("error", err);
     });
 
@@ -45,7 +53,7 @@ module.exports = function(options, cb) {
 
     client.disconnect = function() {
       _disconnect();
-      domain.dispose();
+      clientDomain.dispose();
     };
   });
 
@@ -53,3 +61,5 @@ module.exports = function(options, cb) {
 
   return client;
 };
+
+module.exports.__riemann;
