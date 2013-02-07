@@ -1,7 +1,8 @@
 /**
  * Module dependencies
  */
-var domain = require("domain");
+var riemann = require("riemann")
+  , domain = require("domain").create();
 
 /**
  * Cache the clients
@@ -17,49 +18,46 @@ var CACHE = {};
  * @return {RiemannClient}
  */
 module.exports = function(options, cb) {
-  if (typeof options === "function" || typeof options === "undefined") {
-    cb = options || function(){};
+  if (typeof options === "function") {
+    cb = options;
     options = {};
   };
 
   // Defaults
+  options = options || {};
   options.host = options.host || process.env.RIEMANN_HOST || "127.0.0.1";
   options.port = options.port || process.env.RIEMANN_PORT || 5555;
 
-  if (CACHE[options.host+options.port]) return CACHE[options.host+options.port];
+  var cacheKey = options.host+":"+options.port;
 
-  try {
-    module.exports.__riemann = module.exports.__riemann || require("riemann");
-  }
-  catch(e) {
-    console.error("Could not load riemann. Try adding it to the app dependencies or run\n  require('simple-riemann').__riemann = require('riemann');")
-  }
+  // Noop
+  cb = cb || function(err){
+    console.error("Error connecting to riemann at "+cacheKey+":", err.stack || err, "\n Try setting RIEMANN_HOST and RIEMANN_PORT");
+  };
 
-  var clientDomain = domain.create();
+  if (CACHE[cacheKey]) return CACHE[cacheKey];
 
-  clientDomain.on("error", cb);
+  domain.on("error", cb);
 
   var client;
 
-  clientDomain.run(function() {
-    client = module.exports.__riemann.createClient(options);
+  domain.run(function() {
+    client = riemann.createClient(options);
 
-    clientDomain.removeAllListeners("error");
-    clientDomain.on("error", function(err) {
-      client.emit("error", err);
+    domain.removeAllListeners('error');
+    domain.on("error", function(err) {
+      cb(err);
     });
 
     var _disconnect = client.disconnect;
 
     client.disconnect = function() {
       _disconnect();
-      clientDomain.dispose();
+      domain.dispose();
     };
   });
 
-  if(client) CACHE[options.host+options.port] = client;
+  if(client) CACHE[cacheKey] = client;
 
   return client;
 };
-
-module.exports.__riemann;
