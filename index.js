@@ -46,12 +46,14 @@ module.exports = function(options, cb) {
 
     domain.removeAllListeners('error');
     domain.on("error", function(err) {
+      delete CACHE[cacheKey];
       cb(err);
     });
 
     var _disconnect = client.disconnect;
 
     client.disconnect = function() {
+      delete CACHE[cacheKey];
       _disconnect();
       domain.dispose();
     };
