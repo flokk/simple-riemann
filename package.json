@@ -17,6 +17,9 @@
   "author": "Cameron Bytheway <cameron@theflokk.com>",
   "license": "MIT",
   "readmeFilename": "README.md",
+  "peerDependencies": {
+    "riemann": "0.x"
+  },
   "devDependencies": {
     "riemann": "~0.4.0"
   }
